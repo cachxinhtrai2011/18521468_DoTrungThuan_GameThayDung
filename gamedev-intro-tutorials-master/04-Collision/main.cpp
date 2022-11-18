@@ -1,4 +1,4 @@
-/* =============================================================
+﻿/* =============================================================
 	INTRODUCTION TO GAME PROGRAMMING SE102
 	
 	SAMPLE 04 - COLLISION
@@ -34,6 +34,7 @@
 #include "Mario.h"
 #include "Brick.h"
 #include "Goomba.h"
+#include "GoombaV2.h"
 #include "Coin.h"
 #include "Platform.h"
 
@@ -59,6 +60,7 @@
 
 CGame *game;
 CMario *mario;
+CGoombaV2* goombav2;
 
 list<LPGAMEOBJECT> objects;
 
@@ -307,6 +309,33 @@ void LoadAssetsGoomba()
 	animations->Add(ID_ANI_GOOMBA_DIE, ani);
 
 }
+void LoadAssetsGoomba_V2()
+{
+	CTextures* textures = CTextures::GetInstance();
+	CSprites* sprites = CSprites::GetInstance();
+	CAnimations* animations = CAnimations::GetInstance();
+
+	LPTEXTURE texEnemy = textures->Get(ID_TEX_ENEMY);
+
+	sprites->Add(ID_SPRITE_GOOMBA_V2_WALK + 1, 4, 13, 22, 30, texEnemy);
+	sprites->Add(ID_SPRITE_GOOMBA_V2_WALK + 2, 24, 13, 42, 30, texEnemy);
+
+	sprites->Add(ID_SPRITE_GOOMBA_V2_DIE + 1, 44, 19, 62, 30, texEnemy);
+
+	LPANIMATION ani = new CAnimation(100);
+	ani->Add(ID_SPRITE_GOOMBA_V2_WALK + 1);
+	ani->Add(ID_SPRITE_GOOMBA_V2_WALK + 2);
+	animations->Add(ID_ANI_GOOMBA_V2_WALKING, ani);
+
+	LPANIMATION ani_v2 = new CAnimation(100);
+	ani_v2->Add(ID_SPRITE_GOOMBA_V2_WALK + 1);
+	animations->Add(ID_ANI_GOOMBA_V2_IDDLE, ani_v2);
+
+	ani = new CAnimation(100);
+	ani->Add(ID_SPRITE_GOOMBA_V2_DIE + 1);
+	animations->Add(ID_ANI_GOOMBA_V2_DIE, ani);
+
+}
 void LoadAssetsBrick()
 {
 	CTextures* textures = CTextures::GetInstance();
@@ -368,6 +397,7 @@ void LoadResources()
 
 	LoadAssetsMario();
 	LoadAssetsGoomba();
+	LoadAssetsGoomba_V2();
 	LoadAssetsBrick();
 	LoadAssetsCoin();
 	LoadAssetsOther();
@@ -451,11 +481,15 @@ void Reload()
 	mario = new CMario(MARIO_START_X, MARIO_START_Y);
 	objects.push_back(mario);
 
-	for (int j = 0; j < 4; j++)
+	//tạo goomba. 1 con thì new 1 cái. Còn nhiều thì nhét vòng for
+	goombav2 = new CGoombaV2(100, 100);
+	objects.push_back(goombav2);
+	//nhiều goomba
+	/*for (int j = 0; j < 4; j++)
 	{
 		CGoomba* goomba = new CGoomba(GOOMBA_X + j * 60, GROUND_Y - 120.0f);
 		objects.push_back(goomba);
-	}
+	}*/
 
 	// COINS 
 	for (int i = 0; i < 10; i++)

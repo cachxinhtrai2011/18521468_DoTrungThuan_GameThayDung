@@ -5,7 +5,10 @@
 
 #include "Mario.h"
 
+#include "GoombaV2.h"
+
 extern CMario* mario;
+extern CGoombaV2* goombav2;
 extern void Reload();
 
 void CSampleKeyHandler::OnKeyDown(int KeyCode)
@@ -24,6 +27,9 @@ void CSampleKeyHandler::OnKeyDown(int KeyCode)
 		break;
 	case DIK_2:
 		mario->SetLevel(MARIO_LEVEL_BIG);
+		break;
+	case DIK_6:
+		goombav2->SetState(GOOMBA_V2_STATE_IDDLE);
 		break;
 	case DIK_R: // reset
 		Reload();
