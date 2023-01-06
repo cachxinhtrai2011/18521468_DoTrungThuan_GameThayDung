@@ -1,66 +1,119 @@
 #include "Map.h"
-#include "Utils.h"
-#include "Textures.h"
-#include "Game.h"
 #include "debug.h"
+#include "Sprites.h"
 
-CMap::CMap(int TileSetID, int TotalRowsInMap, int TotalColumnsInMap, int RowsInTileSet, int ColumnsInTileSet, int TotalTiles, int** tileMatrix)
+#define MAP_INFO_SECTION 1
+#define MAP_TILE_SECTION 2
+#define MAP_UNKNOWN_SECTION -1
+#define TEX_MAP_ID = 30
+CMap::CMap(wstring path)
 {
-	TileTexture = CTextures::GetInstance()->Get(TileSetID);
-	this->TotalRowsInMap = TotalRowsInMap;
-	this->TotalColumnsInMap = TotalColumnsInMap;
-	this->RowsInTileSet = RowsInTileSet;
-	this->ColumnsInTileSet = ColumnsInTileSet;
-	this->TotalTiles = TotalTiles;
-	this->TileMap = tileMatrix;
+	Load(path);
 }
 
-CMap::~CMap()
+void CMap::Load(wstring path)
 {
-}
+	ifstream f;
+	f.open(path);
 
-void CMap::AddTiles()
-{
-	for (int tileID = 0; tileID < TotalTiles; tileID++)
-	{
-		int left = tileID % ColumnsInTileSet * TILE_WIDTH;
-		int top = tileID / ColumnsInTileSet * TILE_HEIGHT;
-		int right = left + TILE_WIDTH;
-		int bottom = top + TILE_HEIGHT;
-		LPSPRITE NewTile = new CSprite(tileID, left, top, right, bottom, TileTexture);
-		this->Tiles.push_back(NewTile);
+	// current resource section flag
+	int section = MAP_UNKNOWN_SECTION;
+	char str[MAX_MAP_LINE];
+	while (f.getline(str, MAX_MAP_LINE)) {
+		string line(str);
+		if (line[0] == '#') continue;
+		if (line == "[Info]") {
+			section = MAP_INFO_SECTION;
+			continue;
+		}
+		if (line == "[Map]") {
+			section = MAP_TILE_SECTION;
+			continue;
+		}
+		if (line[0] == '[') {
+			section = MAP_UNKNOWN_SECTION;
+			continue;
+		}
+
+		switch (section) {
+		case MAP_INFO_SECTION:
+			_ParseSection_Info(line);
+			break;
+		case MAP_TILE_SECTION:
+			_ParseSection_MapTile(line);
+			break;
+		}
 	}
+	f.close();
+	LoadMapTiles();
 }
 
 void CMap::Render()
 {
-	//Get camera
-	CGame* game = CGame::GetInstance();
-	float cam_x, cam_y;
-	game->GetCamPos(cam_x, cam_y);
-	int cam_w = game->GetBackBufferWidth();
-	int cam_h = game->GetBackBufferHeight();
+	LPTEXTURE tex = CTextures::GetInstance()->Get(MAP_TEXTURE);
 
-	int BeginRow = (int)floor(cam_y / TILE_HEIGHT);
-	int EndRow = (int)ceil((cam_y + cam_h) / TILE_HEIGHT);
-	int BeginColumn = (int)floor(cam_x / TILE_WIDTH);
-	int EndColumn = (int)ceil((cam_x + cam_w) / TILE_WIDTH);
-
-	//Render
-	for (int CurrentRow = BeginRow; CurrentRow < EndRow; CurrentRow++)
-		for (int CurrentColumn = BeginColumn; CurrentColumn < EndColumn; CurrentColumn++)
-		{
-			int index = TileMap[CurrentRow][CurrentColumn] - 1;
-			Tiles.at(index)->Draw((float)(CurrentColumn * TILE_WIDTH), (float)(CurrentRow * TILE_HEIGHT));
+	float x, y;
+	CGame::GetInstance()->GetCamPos(x, y);
+	int startX = (int)(x / width * column - 2);
+	int startY = (int)(y / height * row);
+	int endX = startX + offsetW > column ? column : startX + offsetW;
+	int endY = startY + offsetH > row ? row : startY + offsetH;
+	for (int i = startY; i < endY; i++) {
+		for (int j = startX; j < endX; j++) {
+			int id = tiles[i][j];
+			CSprites::GetInstance()->Get(id)->Draw((float)(tileSize * j), (float)(tileSize * i));
 		}
+	}
 }
 
-int CMap::GetMapWidth()
+void CMap::_ParseSection_MapTile(string line)
 {
-	return TotalColumnsInMap * TILE_WIDTH;
+	vector<string> tokens = split(line);
+
+	size_t size = tokens.size();
+	if (size < column) return;
+	for (int i = 0; i < column; i++) {
+		tiles[currentRow][i] = atoi(tokens[i].c_str()) - 1;
+	}
+	currentRow++;
 }
 
-int CMap::GetMapHeight()
+void CMap::_ParseSection_Info(string line)
 {
-	return TotalRowsInMap * TILE_HEIGHT;
+	vector<string> tokens = split(line);
+	size_t size = tokens.size();
+
+	if (size < 5) return;
+	row = atoi(tokens[0].c_str());
+	column = atoi(tokens[1].c_str());
+	tileRow = atoi(tokens[2].c_str());
+	tileColumn = atoi(tokens[3].c_str());
+	tileSize = atoi(tokens[4].c_str());
+	tex = CTextures::GetInstance()->Get(atoi(tokens[5].c_str()));
+	height = row * tileSize;
+	width = column * tileSize;
+
+	offsetW = CGame::GetInstance()->GetBackBufferWidth() / tileSize + EXTRA_TILE;
+	offsetH = CGame::GetInstance()->GetBackBufferHeight() / tileSize + EXTRA_TILE;
+}
+
+void CMap::LoadMapTiles() {
+	int id = 0;
+	for (int i = 0; i < tileRow; i++)
+	{
+		for (int j = 0; j < tileColumn; j++)
+		{
+			RECT r;
+			r.left = id % tileColumn * tileSize;
+			r.top = (id / tileColumn) * tileSize;
+			r.right = r.left + tileSize;
+			r.bottom = r.top + tileSize;
+			CSprites::GetInstance()->Add(id, r.left, r.top, r.right, r.bottom, tex);
+			id++;
+		}
+	}
+}
+
+CMap::~CMap()
+{
 }

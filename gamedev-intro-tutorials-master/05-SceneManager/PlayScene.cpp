@@ -9,16 +9,19 @@
 #include "Portal.h"
 #include "Coin.h"
 #include "Platform.h"
-#include "Map.h"
+#include "Hud.h"
 
 #include "SampleKeyEventHandler.h"
 
 using namespace std;
 
-CPlayScene::CPlayScene(int id, LPCWSTR filePath):
+#define _game CGame::GetInstance() 
+
+CPlayScene::CPlayScene(int id, LPCWSTR filePath) :
 	CScene(id, filePath)
 {
 	player = NULL;
+	camera = NULL;
 	key_handler = new CSampleKeyHandler(this);
 }
 
@@ -67,24 +70,17 @@ void CPlayScene::_ParseSection_ASSETS(string line)
 	
 	LoadAssets(path.c_str());
 }
-void CPlayScene::_ParseSection_TILEDMAP(string line)
-{
-	int ID, rowMap, columnMap, columnTile, rowTile, totalTiles;
-	LPCWSTR path = ToLPCWSTR(line);
-	ifstream f;
-	f.open(path);
-	f >> ID >> rowMap >> columnMap >> rowTile >> columnTile >> totalTiles;
-	int** tileMapData = new int* [rowMap];
-	for (int i = 0; i < rowMap; i++)
-	{
-		tileMapData[i] = new int[columnMap];
-		for (int j = 0; j < columnMap; j++)
-			f >> tileMapData[i][j];
-	}
-	f.close();
+void CPlayScene::LoadMap(LPCWSTR mapFile) {
+	DebugOut(L"[INFO] Start loading map from : %s \n", mapFile);
+	map = new CMap(mapFile);
+	DebugOut(L"[INFO] Done loading map from %s\n", mapFile);
+}
+void CPlayScene::_ParseSection_TILEDMAP(string line) {
+	vector<string> tokens = split(line);
+	if (tokens.size() < 1) return;
+	wstring path = ToWSTR(tokens[0]);
 
-	map = new CMap(ID, rowMap, columnMap, rowTile, columnTile, totalTiles, tileMapData);
-	map->AddTiles();
+	LoadMap(path.c_str());
 }
 
 void CPlayScene::_ParseSection_ANIMATIONS(string line)
@@ -122,28 +118,89 @@ void CPlayScene::_ParseSection_OBJECTS(string line)
 	float x = (float)atof(tokens[1].c_str());
 	float y = (float)atof(tokens[2].c_str());
 
-	CGameObject *obj = NULL;
+	CGameObject* obj = NULL;
+	FallDetector* fallDetector = NULL;
 
 	switch (object_type)
 	{
-	case OBJECT_TYPE_MARIO:
-		if (player!=NULL) 
+	case OBJECT_TYPE_MARIO: {
+		if (player != NULL)
 		{
 			DebugOut(L"[ERROR] MARIO object was created before!\n");
-			return;
 		}
-		obj = new CMario(x,y); 
-		player = (CMario*)obj;  
-
+		obj = new CMario(x, y);
+		player = (CMario*)obj;
+		CMario::SetInstance((CMario*)obj);
 		DebugOut(L"[INFO] Player object has been created!\n");
 		break;
-	case OBJECT_TYPE_GOOMBA: obj = new CGoomba(x,y); break;
-	case OBJECT_TYPE_BRICK: obj = new CBrick(x,y); break;
-	case OBJECT_TYPE_COIN: obj = new CCoin(x, y); break;
+	}
+	case OBJECT_TYPE_GOOMBA: {
+		int level = (int)atoi(tokens[3].c_str());
+		obj = new CGoomba(x, y, level);
+		break;
+	}
+	case OBJECT_TYPE_KOOPAS: {
+		// We adding a [FallDetector] when we instantiate a Red Koopas - to the objects vector
+		int level = (int)atoi(tokens[3].c_str());
+		obj = new CKoopas(x, y, level);
+
+		CKoopas* tempKoopas = dynamic_cast<CKoopas*>(obj);
+		fallDetector = new FallDetector(x, y);
+		fallDetector->height = KOOPAS_BBOX_HEIGHT;
+		objects.push_back(fallDetector);
+		tempKoopas->fallDetector = fallDetector;
+
+		break;
+	}
+	case OBJECT_TYPE_PLANT: {
+		obj = new CPlant(x, y);
+		break;
+	}
+	case OBJECT_TYPE_BRICK: {
+		obj = new CBrick(x, y);
+		break;
+	}
+	case OBJECT_TYPE_PIPE: {
+		float height = (float)atoi(tokens[3].c_str());
+		int destinationSceneId = atoi(tokens[4].c_str());
+		int green = atoi(tokens[5].c_str());
+
+		obj = new CWarpPipe(x, y, height, destinationSceneId, green);
+		break;
+	}
+	case OBJECT_TYPE_QUESTION_BLOCK: {
+		int itemType = atoi(tokens[3].c_str());
+		obj = new CQuestionBlock(x, y, itemType);
+		break;
+	}
+	case OBJECT_TYPE_ITEM: {
+		int type = (int)atoi(tokens[3].c_str());
+		switch (type)
+		{
+		case ItemType::SuperItem:
+			obj = new CSuperItem(x, y);
+			break;
+		case ItemType::Coin: {
+			int isInsideBrick = (int)atoi(tokens[4].c_str());
+			obj = new CCoin(x, y, isInsideBrick);
+			break;
+		}
+		default:
+			break;
+		}
+		break;
+	}
+	case OBJECT_TYPE_COLOR_BLOCK: {
+		float cell_width = (float)atof(tokens[3].c_str());
+		float cell_height = (float)atof(tokens[4].c_str());
+		int length = atoi(tokens[5].c_str());
+		obj = new CColorBlock(x, y, cell_width * length, cell_height,
+			cell_width, cell_height, length);
+		break;
+	}
 
 	case OBJECT_TYPE_PLATFORM:
 	{
-
 		float cell_width = (float)atof(tokens[3].c_str());
 		float cell_height = (float)atof(tokens[4].c_str());
 		int length = atoi(tokens[5].c_str());
@@ -156,9 +213,17 @@ void CPlayScene::_ParseSection_OBJECTS(string line)
 			cell_width, cell_height, length,
 			sprite_begin, sprite_middle, sprite_end
 		);
-
-		break;
 	}
+	break;
+
+	case OBJECT_TYPE_BREAKABLE_BRICK:
+	{
+		bool HaveButton = false;
+		int Item = atoi(tokens[3].c_str());
+		obj = new BreakableBrick(x, y, Item);
+
+	}
+	break;
 
 	case OBJECT_TYPE_PORTAL:
 	{
@@ -177,8 +242,6 @@ void CPlayScene::_ParseSection_OBJECTS(string line)
 
 	// General object setup
 	obj->SetPosition(x, y);
-
-
 	objects.push_back(obj);
 }
 
@@ -250,7 +313,7 @@ void CPlayScene::Load()
 	}
 
 	f.close();
-
+	camera = new CCamera(map->getMapWidth(), map->getMapHeight(), (float)_game->GetBackBufferWidth(), (float)_game->GetBackBufferHeight());
 	DebugOut(L"[INFO] Done loading scene  %s\n", sceneFilePath);
 }
 
@@ -276,14 +339,15 @@ void CPlayScene::Update(DWORD dt)
 	// Update camera to follow mario
 	float cx, cy;
 	player->GetPosition(cx, cy);
-
+	camera->SetPosition(cx, cy);
 	CGame *game = CGame::GetInstance();
-	cx -= game->GetBackBufferWidth() / 2;
-	cy -= game->GetBackBufferHeight() / 2;
+	/*cx -= game->GetBackBufferWidth() / 2;
+	cy -= game->GetBackBufferHeight() / 2;*/
 
 	if (cx < 0) cx = 0;
-
-	CGame::GetInstance()->SetCamPos(cx, 0.0f /*cy*/);
+	//
+	//CGame::GetInstance()->SetCamPos(cx, 0.0f /*cy*/);
+	_game->SetCamPos(cx, cy);
 
 	PurgeDeletedObjects();
 }

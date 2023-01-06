@@ -1,22 +1,32 @@
-#pragma once
-#include "Sprites.h"
+#include <string>
+#include <fstream>
+#include "Utils.h"
+#include "Game.h"
+#include "Textures.h"
 
-#define TILE_WIDTH 16
-#define TILE_HEIGHT 16
+#define MAX_MAP_LINE			1024
+#define MAP_TEXTURE				30
+#define EXTRA_TILE				4
 
-class CMap
-{
-	int TotalRowsInMap, TotalColumnsInMap;
-	int RowsInTileSet, ColumnsInTileSet;
-	int TotalTiles;
-	LPTEXTURE TileTexture;
-	vector<LPSPRITE> Tiles;
-	int** TileMap;
+class CMap {
+	int column, row = 0;
+	int tileSize = 0;
+	int tileColumn, tileRow = 0;
+	int tiles[30][200] = { -1, -1 };
+	int currentRow = 0; // util for parsing from text.
+	LPTEXTURE tex = NULL;
+	int width, height;
+
+	int offsetW, offsetH;	// number of tile need to render
 public:
-	CMap(int TileSetID, int TotalRowsInMap, int TotalColumnsInMap, int RowsInTileSet, int ColumnsInTileSet, int TotalTiles, int** tileMatrix);
+	CMap(wstring path);
 	~CMap();
+
+	int getMapWidth() { return width; }
+	int getMapHeight() { return height; }
+	void Load(wstring path);
 	void Render();
-	void AddTiles();
-	int GetMapWidth();
-	int GetMapHeight();
+	void _ParseSection_MapTile(string line);
+	void _ParseSection_Info(string line);
+	void LoadMapTiles();
 };
