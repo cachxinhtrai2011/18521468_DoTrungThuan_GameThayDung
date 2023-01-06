@@ -9,6 +9,7 @@
 #include "Portal.h"
 #include "Coin.h"
 #include "Platform.h"
+#include "Map.h"
 
 #include "SampleKeyEventHandler.h"
 
@@ -65,6 +66,25 @@ void CPlayScene::_ParseSection_ASSETS(string line)
 	wstring path = ToWSTR(tokens[0]);
 	
 	LoadAssets(path.c_str());
+}
+void CPlayScene::_ParseSection_TILEDMAP(string line)
+{
+	int ID, rowMap, columnMap, columnTile, rowTile, totalTiles;
+	LPCWSTR path = ToLPCWSTR(line);
+	ifstream f;
+	f.open(path);
+	f >> ID >> rowMap >> columnMap >> rowTile >> columnTile >> totalTiles;
+	int** tileMapData = new int* [rowMap];
+	for (int i = 0; i < rowMap; i++)
+	{
+		tileMapData[i] = new int[columnMap];
+		for (int j = 0; j < columnMap; j++)
+			f >> tileMapData[i][j];
+	}
+	f.close();
+
+	map = new CMap(ID, rowMap, columnMap, rowTile, columnTile, totalTiles, tileMapData);
+	map->AddTiles();
 }
 
 void CPlayScene::_ParseSection_ANIMATIONS(string line)
@@ -224,7 +244,7 @@ void CPlayScene::Load()
 		switch (section)
 		{ 
 			case SCENE_SECTION_ASSETS: _ParseSection_ASSETS(line); break;
-			case SCENE_SECTION_TILEDMAP: _ParseSection_ASSETS(line); break;
+			case SCENE_SECTION_TILEDMAP: _ParseSection_TILEDMAP(line); break;
 			case SCENE_SECTION_OBJECTS: _ParseSection_OBJECTS(line); break;
 		}
 	}
@@ -270,6 +290,7 @@ void CPlayScene::Update(DWORD dt)
 
 void CPlayScene::Render()
 {
+	map->Render();
 	for (int i = 0; i < objects.size(); i++)
 		objects[i]->Render();
 }
