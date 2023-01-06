@@ -1,9 +1,9 @@
 # list of object assets to load in this scene
 [ASSETS]
-mario.txt
-brick.txt
-coin.txt
-goomba.txt
+txt\mario.txt
+txt\brick.txt
+txt\coin.txt
+txt\goomba.txt
 cloud.txt
 #
 [OBJECTS]

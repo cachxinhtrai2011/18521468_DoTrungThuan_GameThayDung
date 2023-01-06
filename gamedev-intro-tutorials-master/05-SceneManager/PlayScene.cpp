@@ -9,8 +9,14 @@
 #include "Portal.h"
 #include "Coin.h"
 #include "Platform.h"
-
+#include "Ground.h"
+#include "ColorBox.h"
+//#include "ColorBlock.h"
+//#include "WarpPipe.h"
+//#include "BreakableBrick.h"
+//#include "Hud.h"
 #include "SampleKeyEventHandler.h"
+
 
 using namespace std;
 
@@ -24,7 +30,8 @@ CPlayScene::CPlayScene(int id, LPCWSTR filePath):
 
 #define SCENE_SECTION_UNKNOWN -1
 #define SCENE_SECTION_ASSETS	1
-#define SCENE_SECTION_OBJECTS	2
+#define SCENE_SECTION_TILEMAP	2
+#define SCENE_SECTION_OBJECTS	3
 
 #define ASSETS_SECTION_UNKNOWN -1
 #define ASSETS_SECTION_SPRITES 1
@@ -54,7 +61,28 @@ void CPlayScene::_ParseSection_SPRITES(string line)
 
 	CSprites::GetInstance()->Add(ID, l, t, r, b, tex);
 }
+/*
+	Parse a line in section [TILEMAP]
+*/
+void CPlayScene::_ParseSection_TILEMAP(string line)
+{
+	int ID, rowMap, columnMap, columnTile, rowTile, totalTiles;
+	LPCWSTR path = ToLPCWSTR(line);
+	ifstream f;
+	f.open(path);
+	f >> ID >> rowMap >> columnMap >> rowTile >> columnTile >> totalTiles;
+	int** tileMapData = new int* [rowMap];
+	for (int i = 0; i < rowMap; i++)
+	{
+		tileMapData[i] = new int[columnMap];
+		for (int j = 0; j < columnMap; j++)
+			f >> tileMapData[i][j];
+	}
+	f.close();
 
+	map = new CMap(ID, rowMap, columnMap, rowTile, columnTile, totalTiles, tileMapData);
+	map->AddTiles();
+}
 void CPlayScene::_ParseSection_ASSETS(string line)
 {
 	vector<string> tokens = split(line);
@@ -119,7 +147,20 @@ void CPlayScene::_ParseSection_OBJECTS(string line)
 	case OBJECT_TYPE_GOOMBA: obj = new CGoomba(x,y); break;
 	case OBJECT_TYPE_BRICK: obj = new CBrick(x,y); break;
 	case OBJECT_TYPE_COIN: obj = new CCoin(x, y); break;
-
+	case OBJECT_TYPE_GROUND:
+	{
+		int w = atoi(tokens[3].c_str());
+		int h = atoi(tokens[4].c_str());
+		obj = new CGround(x, y, w, h);
+		break;
+	}
+	case OBJECT_TYPE_COLOX_BOX:
+	{
+		int w = atoi(tokens[3].c_str());
+		int h = atoi(tokens[4].c_str());
+		obj = new CColorBox(x, y, w, h);
+		break;
+	}
 	case OBJECT_TYPE_PLATFORM:
 	{
 
@@ -138,7 +179,6 @@ void CPlayScene::_ParseSection_OBJECTS(string line)
 
 		break;
 	}
-
 	case OBJECT_TYPE_PORTAL:
 	{
 		float r = (float)atof(tokens[3].c_str());
@@ -213,6 +253,7 @@ void CPlayScene::Load()
 
 		if (line[0] == '#') continue;	// skip comment lines	
 		if (line == "[ASSETS]") { section = SCENE_SECTION_ASSETS; continue; };
+		if (line == "[TILEMAP]") { section = SCENE_SECTION_TILEMAP; continue; };
 		if (line == "[OBJECTS]") { section = SCENE_SECTION_OBJECTS; continue; };
 		if (line[0] == '[') { section = SCENE_SECTION_UNKNOWN; continue; }	
 
@@ -222,6 +263,7 @@ void CPlayScene::Load()
 		switch (section)
 		{ 
 			case SCENE_SECTION_ASSETS: _ParseSection_ASSETS(line); break;
+			case SCENE_SECTION_TILEMAP: _ParseSection_TILEMAP(line); break;
 			case SCENE_SECTION_OBJECTS: _ParseSection_OBJECTS(line); break;
 		}
 	}
@@ -248,25 +290,50 @@ void CPlayScene::Update(DWORD dt)
 	}
 
 	// skip the rest if scene was already unloaded (Mario::Update might trigger PlayScene::Unload)
-	if (player == NULL) return; 
+	if (player == NULL) return;
 
 	// Update camera to follow mario
 	float cx, cy;
-	player->GetPosition(cx, cy);
+	float mario_x, mario_y;
+	player->GetPosition(mario_x, mario_y);
 
-	CGame *game = CGame::GetInstance();
-	cx -= game->GetBackBufferWidth() / 2;
-	cy -= game->GetBackBufferHeight() / 2;
+	CGame* game = CGame::GetInstance();
+	//game->GetCamPos(cx, cy);
+	//if (mario_x - cx < game->GetBackBufferWidth() / 2) {
+	//	cx = mario_x - game->GetBackBufferWidth() / 2;
+	//}
+	//if (mario_y - cy < game->GetBackBufferHeight() / 2) {
+	//	cy = mario_y - game->GetBackBufferHeight() / 2;
+	//}
+	//if (cx < 0) {
+	//	cx = 0;
+	//}
+	//if (cx > map->GetMapWidth() - game->GetBackBufferWidth()) {
+	//	cx = map->GetMapWidth() - game->GetBackBufferWidth();
+	//}
+	//if (cy < 0) {
+	//	cy = 0;
+	//}
+	//if (cy > map->GetMapHeight() - game->GetBackBufferHeight()) {
+	//	cy = map->GetMapHeight() - game->GetBackBufferHeight();
+	//}
+	cx = mario_x - game->GetBackBufferWidth() / 2;
+	cy = mario_y - game->GetBackBufferHeight() / 2;
 
 	if (cx < 0) cx = 0;
-
-	CGame::GetInstance()->SetCamPos(cx, 0.0f /*cy*/);
+	if (cx + game->GetBackBufferWidth() > map->GetMapWidth()) cx = map->GetMapWidth() - game->GetBackBufferWidth();
+	if (cy < 0) cy = 0;
+	if (cy + game->GetBackBufferHeight() > map->GetMapHeight()) cy = map->GetMapHeight() - game->GetBackBufferHeight();
+	//DebugOut(L"cx: %d", cx);
+	//DebugOut(L"cy: %d", cy);
+	CGame::GetInstance()->SetCamPos(cx, cy);
 
 	PurgeDeletedObjects();
 }
 
 void CPlayScene::Render()
 {
+	map->Render();
 	for (int i = 0; i < objects.size(); i++)
 		objects[i]->Render();
 }
