@@ -5,6 +5,7 @@ txt\coin.txt
 txt\cloud.txt
 txt\brick.txt
 txt\goomba.txt
+txt\redkoopa.txt
 #
 [TILEMAP]
 txt\TileMap1_1.txt
@@ -17,6 +18,9 @@ txt\TileMap1_1.txt
 
 # MARIO
 0	10	390
+#RED KOOPA
+6	550	350
+6	2100	350
 # GOOMBA
 2	450	400
 2	500	400
@@ -44,7 +48,6 @@ txt\TileMap1_1.txt
 4	1770	136
 4	1818	104
 4	1850	136
-
 #COLORBOX
 51	258	386	48	48
 51	290	370	48	80

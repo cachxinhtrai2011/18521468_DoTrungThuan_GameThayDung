@@ -11,6 +11,7 @@
 #include "Platform.h"
 #include "Ground.h"
 #include "ColorBox.h"
+#include "RedKoopa.h"
 //#include "ColorBlock.h"
 //#include "WarpPipe.h"
 //#include "BreakableBrick.h"
@@ -161,6 +162,13 @@ void CPlayScene::_ParseSection_OBJECTS(string line)
 		obj = new CColorBox(x, y, w, h);
 		break;
 	}
+	case OBJECT_TYPE_RED_KOOPA:
+	{
+		LPGAMEOBJECT detect = new CRedKoopaDetect(x, y);
+		objects.push_back(detect);
+		obj = new CRedKoopa(x, y, detect);
+		break;
+	}
 	case OBJECT_TYPE_PLATFORM:
 	{
 
@@ -185,10 +193,8 @@ void CPlayScene::_ParseSection_OBJECTS(string line)
 		float b = (float)atof(tokens[4].c_str());
 		int scene_id = atoi(tokens[5].c_str());
 		obj = new CPortal(x, y, r, b, scene_id);
+		break;
 	}
-	break;
-
-
 	default:
 		DebugOut(L"[ERROR] Invalid object type: %d\n", object_type);
 		return;

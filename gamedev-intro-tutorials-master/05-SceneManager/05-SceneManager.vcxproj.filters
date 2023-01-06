@@ -84,6 +84,12 @@
     <ClCompile Include="ColorBox.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="RedKoopa.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="RedKoopaDetect.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Animation.h">
@@ -162,6 +168,12 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="ColorBox.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="RedKoopa.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="RedKoopaDetect.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
