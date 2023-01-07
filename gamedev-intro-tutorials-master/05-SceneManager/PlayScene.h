@@ -7,7 +7,6 @@
 #include "Mario.h"
 #include "Goomba.h"
 #include "Map.h"
-#include "Camera.h"
 //#include "Koopas.h"
 
 
@@ -17,7 +16,6 @@ protected:
 	// A play scene has to have player, right? 
 	LPGAMEOBJECT player;					
 	CMap* map;
-	CCamera* camera;
 	vector<LPGAMEOBJECT> objects;
 
 	void _ParseSection_SPRITES(string line);
@@ -26,6 +24,7 @@ protected:
 	void _ParseSection_ASSETS(string line);
 	void _ParseSection_TILEDMAP(string line);
 	void _ParseSection_OBJECTS(string line);
+	void _ParseSection_TILEMAP(string line);
 
 	void LoadMap(LPCWSTR assetFile);
 	void LoadAssets(LPCWSTR assetFile);

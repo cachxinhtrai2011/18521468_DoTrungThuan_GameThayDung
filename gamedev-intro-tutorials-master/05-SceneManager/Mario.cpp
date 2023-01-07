@@ -7,11 +7,14 @@
 #include "Goomba.h"
 #include "Coin.h"
 #include "Portal.h"
-
+#include "RedKoopa.h"
 #include "Collision.h"
 
 void CMario::Update(DWORD dt, vector<LPGAMEOBJECT> *coObjects)
 {
+	if (x < MARIO_BIG_BBOX_WIDTH / 2) {
+		x = MARIO_BIG_BBOX_WIDTH / 2;
+	}
 	vy += ay * dt;
 	vx += ax * dt;
 
@@ -54,7 +57,40 @@ void CMario::OnCollisionWith(LPCOLLISIONEVENT e)
 		OnCollisionWithCoin(e);
 	else if (dynamic_cast<CPortal*>(e->obj))
 		OnCollisionWithPortal(e);
+	else if (dynamic_cast<CRedKoopa*>(e->obj))
+		OnCollisionWithRedKoopa(e);
 }
+void CMario::OnCollisionWithRedKoopa(LPCOLLISIONEVENT e)
+{
+	CRedKoopa* redkoopa = dynamic_cast<CRedKoopa*>(e->obj);
+
+	// jump on top >> kill RedKoopa and deflect a bit 
+	if (e->ny < 0)
+	{
+		if (redkoopa->GetState() == RED_KOOPA_STATE_WALKING)
+		{
+			redkoopa->SetState(RED_KOOPA_STATE_ROLLING);
+			vy = -MARIO_JUMP_DEFLECT_SPEED;
+		}
+	}
+	else // hit by redkoopa
+	{
+		if (untouchable == 0)
+		{
+			if (level > MARIO_LEVEL_SMALL)
+			{
+				level = MARIO_LEVEL_SMALL;
+				StartUntouchable();
+			}
+			else
+			{
+				DebugOut(L">>> Mario DIE >>> \n");
+				SetState(MARIO_STATE_DIE);
+			}
+		}
+	}
+}
+
 
 void CMario::OnCollisionWithGoomba(LPCOLLISIONEVENT e)
 {

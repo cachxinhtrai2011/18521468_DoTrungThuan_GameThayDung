@@ -9,9 +9,15 @@
 #include "Portal.h"
 #include "Coin.h"
 #include "Platform.h"
-#include "Hud.h"
-
+#include "Ground.h"
+#include "ColorBox.h"
+#include "RedKoopa.h"
+//#include "ColorBlock.h"
+//#include "WarpPipe.h"
+//#include "BreakableBrick.h"
+//#include "Hud.h"
 #include "SampleKeyEventHandler.h"
+
 
 using namespace std;
 
@@ -28,8 +34,8 @@ CPlayScene::CPlayScene(int id, LPCWSTR filePath) :
 
 #define SCENE_SECTION_UNKNOWN -1
 #define SCENE_SECTION_ASSETS	1
-#define SCENE_SECTION_OBJECTS	2
-#define SCENE_SECTION_TILEDMAP	3
+#define SCENE_SECTION_TILEMAP	2
+#define SCENE_SECTION_OBJECTS	3
 
 #define ASSETS_SECTION_UNKNOWN -1
 #define ASSETS_SECTION_SPRITES 1
@@ -59,7 +65,28 @@ void CPlayScene::_ParseSection_SPRITES(string line)
 
 	CSprites::GetInstance()->Add(ID, l, t, r, b, tex);
 }
+/*
+	Parse a line in section [TILEMAP]
+*/
+void CPlayScene::_ParseSection_TILEMAP(string line)
+{
+	int ID, rowMap, columnMap, columnTile, rowTile, totalTiles;
+	LPCWSTR path = ToLPCWSTR(line);
+	ifstream f;
+	f.open(path);
+	f >> ID >> rowMap >> columnMap >> rowTile >> columnTile >> totalTiles;
+	int** tileMapData = new int* [rowMap];
+	for (int i = 0; i < rowMap; i++)
+	{
+		tileMapData[i] = new int[columnMap];
+		for (int j = 0; j < columnMap; j++)
+			f >> tileMapData[i][j];
+	}
+	f.close();
 
+	map = new CMap(ID, rowMap, columnMap, rowTile, columnTile, totalTiles, tileMapData);
+	map->AddTiles();
+}
 void CPlayScene::_ParseSection_ASSETS(string line)
 {
 	vector<string> tokens = split(line);
@@ -197,8 +224,30 @@ void CPlayScene::_ParseSection_OBJECTS(string line)
 		obj = new CColorBlock(x, y, cell_width * length, cell_height,
 			cell_width, cell_height, length);
 		break;
+	case OBJECT_TYPE_GOOMBA: obj = new CGoomba(x,y); break;
+	case OBJECT_TYPE_BRICK: obj = new CBrick(x,y); break;
+	case OBJECT_TYPE_COIN: obj = new CCoin(x, y); break;
+	case OBJECT_TYPE_GROUND:
+	{
+		int w = atoi(tokens[3].c_str());
+		int h = atoi(tokens[4].c_str());
+		obj = new CGround(x, y, w, h);
+		break;
 	}
-
+	case OBJECT_TYPE_COLOX_BOX:
+	{
+		int w = atoi(tokens[3].c_str());
+		int h = atoi(tokens[4].c_str());
+		obj = new CColorBox(x, y, w, h);
+		break;
+	}
+	case OBJECT_TYPE_RED_KOOPA:
+	{
+		LPGAMEOBJECT detect = new CRedKoopaDetect(x, y);
+		objects.push_back(detect);
+		obj = new CRedKoopa(x, y, detect);
+		break;
+	}
 	case OBJECT_TYPE_PLATFORM:
 	{
 		float cell_width = (float)atof(tokens[3].c_str());
@@ -222,19 +271,16 @@ void CPlayScene::_ParseSection_OBJECTS(string line)
 		int Item = atoi(tokens[3].c_str());
 		obj = new BreakableBrick(x, y, Item);
 
+		break;
 	}
-	break;
-
 	case OBJECT_TYPE_PORTAL:
 	{
 		float r = (float)atof(tokens[3].c_str());
 		float b = (float)atof(tokens[4].c_str());
 		int scene_id = atoi(tokens[5].c_str());
 		obj = new CPortal(x, y, r, b, scene_id);
+		break;
 	}
-	break;
-
-
 	default:
 		DebugOut(L"[ERROR] Invalid object type: %d\n", object_type);
 		return;
@@ -297,7 +343,7 @@ void CPlayScene::Load()
 
 		if (line[0] == '#') continue;	// skip comment lines	
 		if (line == "[ASSETS]") { section = SCENE_SECTION_ASSETS; continue; };
-		if (line == "[TILEDMAP]") { section = SCENE_SECTION_TILEDMAP; continue; };
+		if (line == "[TILEMAP]") { section = SCENE_SECTION_TILEMAP; continue; };
 		if (line == "[OBJECTS]") { section = SCENE_SECTION_OBJECTS; continue; };
 		if (line[0] == '[') { section = SCENE_SECTION_UNKNOWN; continue; }	
 
@@ -307,7 +353,7 @@ void CPlayScene::Load()
 		switch (section)
 		{ 
 			case SCENE_SECTION_ASSETS: _ParseSection_ASSETS(line); break;
-			case SCENE_SECTION_TILEDMAP: _ParseSection_TILEDMAP(line); break;
+			case SCENE_SECTION_TILEMAP: _ParseSection_TILEMAP(line); break;
 			case SCENE_SECTION_OBJECTS: _ParseSection_OBJECTS(line); break;
 		}
 	}
@@ -334,20 +380,53 @@ void CPlayScene::Update(DWORD dt)
 	}
 
 	// skip the rest if scene was already unloaded (Mario::Update might trigger PlayScene::Unload)
-	if (player == NULL) return; 
+	if (player == NULL) return;
 
 	// Update camera to follow mario
 	float cx, cy;
-	player->GetPosition(cx, cy);
-	camera->SetPosition(cx, cy);
-	CGame *game = CGame::GetInstance();
-	/*cx -= game->GetBackBufferWidth() / 2;
-	cy -= game->GetBackBufferHeight() / 2;*/
+	float mario_x, mario_y;
+	player->GetPosition(mario_x, mario_y);
 
-	if (cx < 0) cx = 0;
-	//
-	//CGame::GetInstance()->SetCamPos(cx, 0.0f /*cy*/);
-	_game->SetCamPos(cx, cy);
+	CGame* game = CGame::GetInstance();
+	//game->GetCamPos(cx, cy);
+	//if (mario_x - cx < game->GetBackBufferWidth() / 2) {
+	//	cx = mario_x - game->GetBackBufferWidth() / 2;
+	//}
+	//if (mario_y - cy < game->GetBackBufferHeight() / 2) {
+	//	cy = mario_y - game->GetBackBufferHeight() / 2;
+	//}
+	//if (cx < 0) {
+	//	cx = 0;
+	//}
+	//if (cx > map->GetMapWidth() - game->GetBackBufferWidth()) {
+	//	cx = map->GetMapWidth() - game->GetBackBufferWidth();
+	//}
+	//if (cy < 0) {
+	//	cy = 0;
+	//}
+	//if (cy > map->GetMapHeight() - game->GetBackBufferHeight()) {
+	//	cy = map->GetMapHeight() - game->GetBackBufferHeight();
+	//}
+	cx = mario_x - MARIO_BIG_BBOX_WIDTH / 2 - game->GetBackBufferWidth() / 2;
+	cy = mario_y - MARIO_BIG_BBOX_HEIGHT / 2 - game->GetBackBufferHeight() / 2;
+
+	if (cx < 0)
+	{
+		cx = 0;
+	}
+	if (cx + game->GetBackBufferWidth() > map->GetMapWidth())
+	{
+		cx = map->GetMapWidth() - game->GetBackBufferWidth();
+	}
+	if (cy < 0)
+	{
+		cy = 0;
+	}
+	if (cy + game->GetBackBufferHeight() > map->GetMapHeight())
+	{
+		cy = map->GetMapHeight() - game->GetBackBufferHeight();
+	}
+	CGame::GetInstance()->SetCamPos(cx, cy);
 
 	PurgeDeletedObjects();
 }
