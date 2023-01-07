@@ -28,7 +28,7 @@ public:
         this->ax = 0;
         this->ay = DETECT_GRAVITY;
         this->detect = detect;
-        this->nx = -1;
+        this->nx = 1;
     };
     void SetDetectObject(LPGAMEOBJECT detect) { this->detect = detect; }
     virtual void SetState(int state);
