@@ -323,15 +323,25 @@ void CPlayScene::Update(DWORD dt)
 	//if (cy > map->GetMapHeight() - game->GetBackBufferHeight()) {
 	//	cy = map->GetMapHeight() - game->GetBackBufferHeight();
 	//}
-	cx = mario_x - game->GetBackBufferWidth() / 2;
-	cy = mario_y - game->GetBackBufferHeight() / 2;
+	cx = mario_x - MARIO_BIG_BBOX_WIDTH / 2 - game->GetBackBufferWidth() / 2;
+	cy = mario_y - MARIO_BIG_BBOX_HEIGHT / 2 - game->GetBackBufferHeight() / 2;
 
-	if (cx < 0) cx = 0;
-	if (cx + game->GetBackBufferWidth() > map->GetMapWidth()) cx = map->GetMapWidth() - game->GetBackBufferWidth();
-	if (cy < 0) cy = 0;
-	if (cy + game->GetBackBufferHeight() > map->GetMapHeight()) cy = map->GetMapHeight() - game->GetBackBufferHeight();
-	//DebugOut(L"cx: %d", cx);
-	//DebugOut(L"cy: %d", cy);
+	if (cx < 0)
+	{
+		cx = 0;
+	}
+	if (cx + game->GetBackBufferWidth() > map->GetMapWidth())
+	{
+		cx = map->GetMapWidth() - game->GetBackBufferWidth();
+	}
+	if (cy < 0)
+	{
+		cy = 0;
+	}
+	if (cy + game->GetBackBufferHeight() > map->GetMapHeight())
+	{
+		cy = map->GetMapHeight() - game->GetBackBufferHeight();
+	}
 	CGame::GetInstance()->SetCamPos(cx, cy);
 
 	PurgeDeletedObjects();

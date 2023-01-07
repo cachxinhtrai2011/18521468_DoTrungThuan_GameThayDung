@@ -12,6 +12,9 @@
 
 void CMario::Update(DWORD dt, vector<LPGAMEOBJECT> *coObjects)
 {
+	if (x < MARIO_BIG_BBOX_WIDTH / 2) {
+		x = MARIO_BIG_BBOX_WIDTH / 2;
+	}
 	vy += ay * dt;
 	vx += ax * dt;
 
